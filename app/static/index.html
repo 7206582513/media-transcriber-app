@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Video/Audio to Text</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="shortcut icon" href="#">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">Media to Text Converter</h1>
+
+            <div class="space-y-4">
+                <!-- YouTube Input -->
+                <div class="border rounded p-4">
+                    <h2 class="text-xl font-semibold mb-2">YouTube Video</h2>
+                    <input type="text" id="youtubeUrl" placeholder="Enter YouTube URL"
+                           class="w-full p-2 border rounded mb-2">
+                    <button onclick="processYouTube()"
+                            class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                        Process YouTube
+                    </button>
+                </div>
+
+                <!-- File Upload -->
+                <div class="border rounded p-4">
+                    <h2 class="text-xl font-semibold mb-2">Local File</h2>
+                    <input type="file" id="fileInput"
+                           class="w-full p-2 border rounded mb-2"
+                           accept="video/*,audio/*">
+                    <button onclick="processFile()"
+                            class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        Upload & Process
+                    </button>
+                </div>
+            </div>
+
+            <!-- Result -->
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold mb-2">Transcript</h3>
+                <div id="result" class="bg-gray-50 p-4 rounded min-h-[200px]"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket('ws://localhost:8000/ws');
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            const resultDiv = document.getElementById('result');
+
+            if (data.type === 'result') {
+                resultDiv.textContent = data.text;
+            } else if (data.type === 'error') {
+                resultDiv.textContent = `Error: ${data.message}`;
+            }
+        };
+
+        async function processYouTube() {
+            const url = document.getElementById('youtubeUrl').value;
+            ws.send(JSON.stringify({
+                type: 'youtube',
+                url: url
+            }));
+        }
+
+        async function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Upload file first
+            await fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            ws.send(JSON.stringify({
+                type: 'file',
+                filename: file.name
+            }));
+        }
+    </script>
+</body>
+</html>
